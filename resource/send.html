@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DemuDAS - sending camera image</title>
+  <script type="text/javascript" src="http://cdn.robotwebtools.org/EventEmitter2/current/eventemitter2.min.js"></script>
+  <script type="text/javascript" src="http://cdn.robotwebtools.org/roslibjs/current/roslib.min.js"></script>
+  <script type="text/javascript" src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+  <script type="text/javascript">
+  var ros = new ROSLIB.Ros({
+    url: 'ws://192.168.0.5:9090/rosbridge'
+  });
+  var camera_topic;
+  var compressed_camera_topic;
+
+  var video;
+  var canvas;
+  var canvas_context;
+
+  $(document).ready(function() {
+    init();
+  });
+
+  function init() {
+    navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia ||
+      navigator.mozGetUserMedia || navigator.msGetUserMedia;
+
+    video = document.createElement('video');
+    video.setAttribute('autoplay', 'autoplay');
+    video.setAttribute('width', '640');
+    video.setAttribute('height', '480');
+    document.body.appendChild(video);
+    video.style.display = 'none';
+
+    canvas = document.createElement('canvas');
+    canvas.setAttribute('width', '640');
+    canvas.setAttribute('height', '480');
+    document.body.appendChild(canvas);
+    canvas_context = canvas.getContext('2d');
+
+    navigator.getUserMedia({video: true}, function(localMediaStream) {
+      video.src = window.URL.createObjectURL(localMediaStream);
+    }, null);
+
+    $('#capture').on('click', function() {
+      snapshot();
+    });
+
+    camera_topic = new ROSLIB.Topic({
+      ros: ros,
+      name: '/camera/image_raw/compressed',
+      messageType: 'sensor_msgs/CompressedImage'
+    });
+  };
+
+  function snapshot() {
+    canvas_context.drawImage(video, 0, 0);
+
+    jpeg_data = atob(canvas.toDataURL('image/jpeg').replace('data:image/jpeg;base64,', ''))
+      array_data = [];
+    for(var i = 0, l = jpeg_data.length; i < l; i += 1) {
+      array_data.push(jpeg_data.charCodeAt(i));
+    }
+    camera_message = new ROSLIB.Message({
+      format: 'jpeg',
+      data: array_data
+    });
+
+    camera_topic.publish(camera_message);
+  };
+  </script>
+</head>
+<body>
+  <button id="capture">capture</button>
+  <p>A camera image will be send to rosbridge network if you click this button.</p>
+  <pre>
+  How can I watch?
+  $ rosrun  image_view image_view image:=/camera/image_raw _image_transport:=compressed
+
+  How can I decompress in ROS Network.
+  $ rosrun image_transport republish compressed in:=/camera/image_raw raw out:=/camera/image_raw
+  </pre>
+</body>
+</html>

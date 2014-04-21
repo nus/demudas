@@ -1,0 +1,9 @@
+<launch>
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+        <arg name="port" value="8081" />
+    </include>
+
+    <node pkg="demudas" type="web_server" name="web_server">
+        <param name="port" value="8080" />
+    </node>
+</launch>
